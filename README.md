@@ -46,7 +46,7 @@ To install LearnAPI, follow these steps:
 
      ```plaintext
      PORT=3000
-     MONGODB_URI=<your MongoDB connection URI>
+     MONGODB_URI=<The MongoDB connection URI>
      JWT_SECRET=<My JWT secret key>
      CLOUDINARY_NAME=<My Cloudinary cloud name>
      CLOUDINARY_API_KEY=<My Cloudinary API key>
