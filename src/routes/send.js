@@ -271,6 +271,9 @@ router.post("/question", (req, res) => __awaiter(void 0, void 0, void 0, functio
                 return res.status(400).json({ message: "Options must be strings" });
             }
         }
+        if (!options.includes(correctAnswer)) {
+            return res.status(400).json({ message: "Correct answer must match one of the provided options" });
+        }
         const newQuestion = new questionModel_1.default({ questionText, options, correctAnswer, difficultyLevel, courseID, category });
         yield newQuestion.save();
         return res.status(201).json({ message: "Question added successfully" });

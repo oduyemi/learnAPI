@@ -356,6 +356,10 @@ router.post("/question", async (req: Request, res: Response) => {
             }
         }
 
+        if (!options.includes(correctAnswer)) {
+            return res.status(400).json({ message: "Correct answer must match one of the provided options" });
+        }
+
         const newQuestion = new Question({ questionText, options, correctAnswer, difficultyLevel, courseID, category });
         await newQuestion.save();
 
