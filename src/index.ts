@@ -22,7 +22,7 @@ app.use(session({
 
 
 const corsOptions = {
-  origin: ["http://localhost:3000"]
+  origin: ["http://localhost:3000", "https://learn.progrowing.org", "https://www.learn.progrowing.org"]
 };
 
 app.use(cors(corsOptions));

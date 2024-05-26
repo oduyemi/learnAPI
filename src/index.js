@@ -22,7 +22,7 @@ app.use(session({
     saveUninitialized: true
 }));
 const corsOptions = {
-    origin: ["http://localhost:3000"]
+    origin: ["http://localhost:3000", "https://learn.progrowing.org", "https://www.learn.progrowing.org"]
 };
 app.use((0, cors_1.default)(corsOptions));
 app.use(body_parser_1.default.json());
