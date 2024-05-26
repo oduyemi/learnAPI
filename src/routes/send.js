@@ -29,8 +29,8 @@ const router = express_1.default.Router();
 require("dotenv").config();
 router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { fname, lname, username, email, phone, password, confirmPassword, img } = req.body;
-        if (![fname, lname, username, email, phone, password, confirmPassword, img].every(field => field)) {
+        const { fname, lname, username, email, phone, password, confirmPassword } = req.body;
+        if (![fname, lname, username, email, phone, password, confirmPassword].every(field => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
         if (password !== confirmPassword) {
@@ -49,14 +49,15 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
             return res.status(400).json({ message: "Username not available" });
         }
         const hashedPassword = yield (0, bcrypt_1.hash)(password, 10);
-        const newUser = new userModel_1.default({ fname, lname, username, email, phone, password: hashedPassword, img });
+        const newUser = new userModel_1.default({ fname, lname, username, email, phone, password: hashedPassword });
         yield newUser.save();
         const token = jsonwebtoken_1.default.sign({
             userID: newUser._id,
             fname: newUser.fname,
             lname: newUser.lname,
             email: newUser.email,
-            username: newUser.username
+            username: newUser.username,
+            img: ""
         }, process.env.JWT_SECRET, { expiresIn: '1h' });
         const userSession = {
             userID: newUser._id,
@@ -65,7 +66,7 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
             username,
             email,
             phone,
-            img
+            img: ""
         };
         req.session.user = userSession;
         return res.status(201).json({
@@ -110,13 +111,9 @@ router.post("/login", (req, res) => __awaiter(void 0, void 0, void 0, function* 
         req.session.user = userSession;
         return res.status(200).json({
             message: "success",
-            userID: user._id,
-            fname: user.fname,
-            lname: user.lname,
-            email: user.email,
-            phone: user.phone,
-            nextStep: "/next-dashboard",
+            userSession,
             token,
+            nextStep: "/dashboard"
         });
     }
     catch (error) {
@@ -126,11 +123,11 @@ router.post("/login", (req, res) => __awaiter(void 0, void 0, void 0, function* 
 }));
 router.post("/admin/register", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { fname, lname, email, phone, password, cpwd } = req.body;
-        if (![fname, lname, email, phone, password, cpwd].every((field) => field)) {
+        const { fname, lname, email, phone, password, confirmPassword } = req.body;
+        if (![fname, lname, email, phone, password, confirmPassword].every((field) => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
-        if (password !== cpwd) {
+        if (password !== confirmPassword) {
             return res.status(400).json({ message: "Both passwords must match!" });
         }
         const existingAdmin = yield adminModel_1.default.findOne({ email });

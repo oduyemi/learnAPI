@@ -58,7 +58,6 @@ const userSchema = new mongoose_1.default.Schema({
     },
     img: {
         type: String,
-        required: true,
         validate: {
             validator: (img) => {
                 // Validate image file extension

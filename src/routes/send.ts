@@ -51,8 +51,8 @@ declare module "express-session" {
 
 router.post("/register", async (req: Request, res: Response) => {
     try {
-        const { fname, lname, username, email, phone, password, confirmPassword, img } = req.body;
-        if (![fname, lname, username, email, phone, password, confirmPassword, img].every(field => field)) {
+        const { fname, lname, username, email, phone, password, confirmPassword } = req.body;
+        if (![fname, lname, username, email, phone, password, confirmPassword].every(field => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -76,7 +76,7 @@ router.post("/register", async (req: Request, res: Response) => {
         }
 
         const hashedPassword = await hash(password, 10);
-        const newUser: IUser = new User({ fname, lname, username, email, phone, password: hashedPassword, img });
+        const newUser: IUser = new User({ fname, lname, username, email, phone, password: hashedPassword });
         await newUser.save();
         const token = jwt.sign(
             {
@@ -84,7 +84,8 @@ router.post("/register", async (req: Request, res: Response) => {
                 fname: newUser.fname,
                 lname: newUser.lname,
                 email: newUser.email,
-                username: newUser.username
+                username: newUser.username,
+                img: ""
             },
             process.env.JWT_SECRET!, 
             { expiresIn: '1h' } 
@@ -97,7 +98,7 @@ router.post("/register", async (req: Request, res: Response) => {
             username,
             email,
             phone,
-            img
+            img: ""
         };
         req.session.user = userSession;
 
@@ -158,13 +159,9 @@ router.post("/login", async (req, res) => {
 
         return res.status(200).json({
             message: "success",
-            userID: user._id,
-            fname: user.fname,
-            lname: user.lname,
-            email: user.email,
-            phone: user.phone,
-            nextStep: "/next-dashboard",
+            userSession,
             token,
+            nextStep: "/dashboard"
         });
     } catch (error) {
         console.error("Error during user login:", error);
@@ -176,12 +173,12 @@ router.post("/login", async (req, res) => {
 
 router.post("/admin/register", async (req: Request, res: Response) => {
     try {
-        const { fname, lname, email, phone, password, cpwd } = req.body;
-        if (![fname, lname, email, phone, password, cpwd].every((field) => field)) {
+        const { fname, lname, email, phone, password, confirmPassword } = req.body;
+        if (![fname, lname, email, phone, password, confirmPassword].every((field) => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        if (password !== cpwd) {
+        if (password !== confirmPassword) {
             return res.status(400).json({ message: "Both passwords must match!" });
         }
 
