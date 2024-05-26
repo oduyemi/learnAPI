@@ -5,6 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importDefault(require("mongoose"));
 const userSchema = new mongoose_1.default.Schema({
+    fname: {
+        type: String,
+        required: true,
+    },
+    lname: {
+        type: String,
+        required: true,
+    },
     username: {
         type: String,
         unique: true,
@@ -24,6 +32,7 @@ const userSchema = new mongoose_1.default.Schema({
     phone: {
         type: String,
         required: true,
+        unique: true,
         validate: {
             validator: (phone) => {
                 // regular expression
@@ -46,9 +55,6 @@ const userSchema = new mongoose_1.default.Schema({
             },
             message: "Password must be at least 8 characters long and contain at least one capital letter, one small letter, one digit, and one special character.",
         },
-    },
-    dateOfBirth: {
-        type: Date,
     },
     img: {
         type: String,

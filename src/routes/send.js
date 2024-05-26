@@ -29,12 +29,16 @@ const router = express_1.default.Router();
 require("dotenv").config();
 router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { username, email, phone, password, cpwd, dateOfBirth, img } = req.body;
-        if (![username, email, phone, password, cpwd, dateOfBirth, img].every(field => field)) {
+        const { fname, lname, username, email, phone, password, confirmPassword, img } = req.body;
+        if (![fname, lname, username, email, phone, password, confirmPassword, img].every(field => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
-        if (password !== cpwd) {
+        if (password !== confirmPassword) {
             return res.status(400).json({ message: "Both passwords must match" });
+        }
+        const existingUserByPhone = yield userModel_1.default.findOne({ phone });
+        if (existingUserByPhone) {
+            return res.status(400).json({ message: "Phone number already registered" });
         }
         const existingUserByEmail = yield userModel_1.default.findOne({ email });
         if (existingUserByEmail) {
@@ -45,15 +49,19 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
             return res.status(400).json({ message: "Username not available" });
         }
         const hashedPassword = yield (0, bcrypt_1.hash)(password, 10);
-        const newUser = new userModel_1.default({ username, email, phone, password: hashedPassword, dateOfBirth, img });
+        const newUser = new userModel_1.default({ fname, lname, username, email, phone, password: hashedPassword, img });
         yield newUser.save();
         const token = jsonwebtoken_1.default.sign({
             userID: newUser._id,
+            fname: newUser.fname,
+            lname: newUser.lname,
             email: newUser.email,
             username: newUser.username
-        }, process.env.JWT_SECRET);
+        }, process.env.JWT_SECRET, { expiresIn: '1h' });
         const userSession = {
             userID: newUser._id,
+            fname,
+            lname,
             username,
             email,
             phone,
@@ -61,9 +69,8 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
         };
         req.session.user = userSession;
         return res.status(201).json({
-            message: "User registered successfully",
-            token,
-            nextStep: "/next-login-page"
+            message: "Registration successful",
+            token
         });
     }
     catch (error) {
@@ -73,30 +80,28 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
 }));
 router.post("/login", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { email, username, password } = req.body;
-        if ((!email && !username) || !password) {
-            return res.status(400).json({ message: "Email/Username and password are required" });
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
         }
-        let user = null;
-        if (email) {
-            user = yield userModel_1.default.findOne({ email });
-        }
-        if (!user && username) {
-            user = yield userModel_1.default.findOne({ username });
-        }
+        const user = yield userModel_1.default.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email/username or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
         const isPasswordMatch = yield (0, bcrypt_1.compare)(password, user.password);
         if (!isPasswordMatch) {
-            return res.status(401).json({ message: "Invalid email/username or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
         const token = jsonwebtoken_1.default.sign({
             userID: user._id,
+            fname: user.fname,
+            lname: user.lname,
             email: user.email
-        }, process.env.JWT_SECRET || "default_secret");
+        }, process.env.JWT_SECRET || "default_secret", { expiresIn: '1h' });
         const userSession = {
             userID: user._id,
+            fname: user.fname,
+            lname: user.lname,
             username: user.username,
             email: user.email,
             phone: user.phone,
@@ -104,7 +109,12 @@ router.post("/login", (req, res) => __awaiter(void 0, void 0, void 0, function* 
         };
         req.session.user = userSession;
         return res.status(200).json({
-            message: "User login successful!.",
+            message: "success",
+            userID: user._id,
+            fname: user.fname,
+            lname: user.lname,
+            email: user.email,
+            phone: user.phone,
             nextStep: "/next-dashboard",
             token,
         });

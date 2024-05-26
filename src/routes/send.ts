@@ -22,6 +22,8 @@ require("dotenv").config();
 
 interface UserSession {
     userID: mongoose.Types.ObjectId; 
+    fname: string;
+    lname: string;
     username: string;
     email: string;
     phone: string;
@@ -46,15 +48,21 @@ declare module "express-session" {
 }
 
 
+
 router.post("/register", async (req: Request, res: Response) => {
     try {
-        const { username, email, phone, password, cpwd, dateOfBirth, img } = req.body;
-        if (![username, email, phone, password, cpwd, dateOfBirth, img].every(field => field)) {
+        const { fname, lname, username, email, phone, password, confirmPassword, img } = req.body;
+        if (![fname, lname, username, email, phone, password, confirmPassword, img].every(field => field)) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        if (password !== cpwd) {
+        if (password !== confirmPassword) {
             return res.status(400).json({ message: "Both passwords must match" });
+        }
+
+        const existingUserByPhone = await User.findOne({ phone });
+        if (existingUserByPhone) {
+            return res.status(400).json({ message: "Phone number already registered" });
         }
 
         const existingUserByEmail = await User.findOne({ email });
@@ -68,22 +76,24 @@ router.post("/register", async (req: Request, res: Response) => {
         }
 
         const hashedPassword = await hash(password, 10);
-
-        const newUser: IUser = new User({ username, email, phone, password: hashedPassword, dateOfBirth, img });
-
+        const newUser: IUser = new User({ fname, lname, username, email, phone, password: hashedPassword, img });
         await newUser.save();
-
         const token = jwt.sign(
             {
                 userID: newUser._id,
+                fname: newUser.fname,
+                lname: newUser.lname,
                 email: newUser.email,
                 username: newUser.username
             },
-            process.env.JWT_SECRET!
+            process.env.JWT_SECRET!, 
+            { expiresIn: '1h' } 
         );
 
-        const userSession: UserSession = {
+        const userSession = {
             userID: newUser._id,
+            fname,
+            lname,
             username,
             email,
             phone,
@@ -92,9 +102,8 @@ router.post("/register", async (req: Request, res: Response) => {
         req.session.user = userSession;
 
         return res.status(201).json({
-            message: "User registered successfully",
-            token,
-            nextStep: "/next-login-page"
+            message: "Registration successful",
+            token
         });
     } catch (error) {
         console.error("Error during user registration:", error);
@@ -106,40 +115,39 @@ router.post("/register", async (req: Request, res: Response) => {
    
 router.post("/login", async (req, res) => {
     try {
-        const { email, username, password } = req.body;
-        if ((!email && !username) || !password) {
-            return res.status(400).json({ message: "Email/Username and password are required" });
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
         }
 
-        let user: IUser | null = null;
-        if (email) {
-            user = await User.findOne({ email });
-        }
-
-        if (!user && username) {
-            user = await User.findOne({ username });
-        }
+        const user = await User.findOne({ email });
 
         if (!user) {
-            return res.status(401).json({ message: "Invalid email/username or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const isPasswordMatch = await compare(password, user.password);
 
         if (!isPasswordMatch) {
-            return res.status(401).json({ message: "Invalid email/username or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const token = jwt.sign(
             {
                 userID: user._id,
+                fname: user.fname,
+                lname: user.lname,
                 email: user.email
             },
-            process.env.JWT_SECRET || "default_secret",
+            process.env.JWT_SECRET || "default_secret", 
+            { expiresIn: '1h' }  
         );
 
         const userSession = {
             userID: user._id,
+            fname: user.fname,
+            lname: user.lname,
             username: user.username,
             email: user.email,
             phone: user.phone,
@@ -149,7 +157,12 @@ router.post("/login", async (req, res) => {
         req.session.user = userSession;
 
         return res.status(200).json({
-            message: "User login successful!.",
+            message: "success",
+            userID: user._id,
+            fname: user.fname,
+            lname: user.lname,
+            email: user.email,
+            phone: user.phone,
             nextStep: "/next-dashboard",
             token,
         });
@@ -158,6 +171,7 @@ router.post("/login", async (req, res) => {
         return res.status(500).json({ message: "Error logging in user" });
     }
 });
+
 
 
 router.post("/admin/register", async (req: Request, res: Response) => {

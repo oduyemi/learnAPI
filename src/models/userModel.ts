@@ -3,16 +3,25 @@ import bcrypt from "bcrypt";
 
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId; 
+  fname: string;
+  lname: string;
   username: string;
   email: string;
   password: string;
   phone: string;
-  dateOfBirth?: Date;
   img: string;
   createdAt: Date;
 }
 
 const userSchema: Schema = new mongoose.Schema({
+  fname: {
+    type: String,
+    required: true,
+  },
+  lname: {
+    type: String,
+    required: true,
+  },
   username: {
     type: String,
     unique: true,
@@ -32,6 +41,7 @@ const userSchema: Schema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
+    unique: true,
     validate: {
       validator: (phone: string) => {
         // regular expression
@@ -54,9 +64,6 @@ const userSchema: Schema = new mongoose.Schema({
       },
       message: "Password must be at least 8 characters long and contain at least one capital letter, one small letter, one digit, and one special character.",
     },
-  },
-  dateOfBirth: {
-    type: Date,
   },
   img: {
     type: String,
