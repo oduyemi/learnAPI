@@ -5,7 +5,7 @@ export interface ICourse extends Document {
   title: string;
   desc: string;
   instructor: string;
-  duration: string; // Adjusted type
+  duration: string; 
   level: "beginner" | "intermediate";
   category: mongoose.Types.ObjectId;
   img: string;

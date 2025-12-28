@@ -20,16 +20,16 @@ const router = express.Router();
 
 require("dotenv").config();
 
-interface UserSession {
-    userID: mongoose.Types.ObjectId; 
+export interface UserSession {
+    userID: mongoose.Types.ObjectId;
     fname: string;
     lname: string;
     username: string;
     email: string;
     phone: string;
-    dateOfBirth?: Date;
+    createdAt?: Date;
     img: string;
-}
+  }
 
 interface AdminSession {
     adminID: mongoose.Types.ObjectId; 
@@ -98,7 +98,7 @@ router.post("/register", async (req: Request, res: Response) => {
             username,
             email,
             phone,
-            img: ""
+            img: "",
         };
         req.session.user = userSession;
 
@@ -117,19 +117,16 @@ router.post("/register", async (req: Request, res: Response) => {
 router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
-
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
         const user = await User.findOne({ email });
-
         if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const isPasswordMatch = await compare(password, user.password);
-
         if (!isPasswordMatch) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
@@ -141,18 +138,19 @@ router.post("/login", async (req, res) => {
                 lname: user.lname,
                 email: user.email
             },
-            process.env.JWT_SECRET || "default_secret", 
-            { expiresIn: '1h' }  
+            process.env.JWT_SECRET || "default_secret",
+            { expiresIn: '1h' }
         );
 
-        const userSession = {
+        const userSession: UserSession = {
             userID: user._id,
             fname: user.fname,
             lname: user.lname,
             username: user.username,
             email: user.email,
             phone: user.phone,
-            img: user.img
+            img: user.img,
+            createdAt: user.createdAt,
         };
 
         req.session.user = userSession;
@@ -168,6 +166,7 @@ router.post("/login", async (req, res) => {
         return res.status(500).json({ message: "Error logging in user" });
     }
 });
+
 
 
 

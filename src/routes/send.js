@@ -66,7 +66,7 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
             username,
             email,
             phone,
-            img: ""
+            img: "",
         };
         req.session.user = userSession;
         return res.status(201).json({
@@ -106,7 +106,8 @@ router.post("/login", (req, res) => __awaiter(void 0, void 0, void 0, function* 
             username: user.username,
             email: user.email,
             phone: user.phone,
-            img: user.img
+            img: user.img,
+            createdAt: user.createdAt,
         };
         req.session.user = userSession;
         return res.status(200).json({
