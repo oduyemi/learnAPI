@@ -3,42 +3,40 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ICourse extends Document {
   _id: mongoose.Types.ObjectId; 
   title: string;
+  slug: string;
   desc: string;
-  instructor: string;
-  duration: string; 
-  level: "beginner" | "intermediate";
   category: mongoose.Types.ObjectId;
+  thumbnail: string;
+  instructor: mongoose.Types.ObjectId[];
+  duration: string; 
+  hasCertificate: Boolean
+  certificateTemplate?: String  
+  isGeneral: boolean;
   img: string;
   createdAt: Date;
 }
 
+
+
+
 const courseSchema: Schema = new mongoose.Schema({
   title: {
     type: String,
-    required: true,
+    required: true
+  },
+  slug: {
+    type: String,
+    unique: true
   },
   desc: {
     type: String,
-    required: true,
-  },
-  instructor: {
-    type: String,
-    required: true,
-  },
-  duration: {
-    type: String,
-    required: true,
-  },
-  level: {
-    type: String,
-    enum: ["beginner", "intermediate"],
-    required: true,
+    required: true
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Category",
   },
-  img: {
+  thumbnail: {
     type: String,
     required: true,
     validate: {
@@ -48,6 +46,29 @@ const courseSchema: Schema = new mongoose.Schema({
       },
       message: "Image must be in .png, .jpg, .jpeg, or .webp format.",
     },
+  },
+  instructors: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  ],
+  duration: {
+    type: String,
+    required: true
+  },
+  certificate: {
+    type: String,
+    required: true
+  },
+  isGeneral: {
+    type: Boolean,
+    default: false
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
   },
   createdAt: {
     type: Date,

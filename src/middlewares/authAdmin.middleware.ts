@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import Admin from "../models/adminModel";
+import Admin from "../models/admin.model";
 
 export interface AuthenticatedAdminRequest extends Request {
   admin?: any;

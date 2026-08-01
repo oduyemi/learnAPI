@@ -1,16 +1,20 @@
 import mongoose, { Schema, Document } from "mongoose";
-import bcrypt from "bcrypt";
+
 
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId; 
   fname: string;
   lname: string;
-  username: string;
   email: string;
   password: string;
   phone: string;
+  role: "student" | "mentor"| "instructor"| "admin";
   img: string;
+  cohort: mongoose.Types.ObjectId;           
+  status: "active" | "suspended" | "graduated";
+  lastLogin:Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema: Schema = new mongoose.Schema({
@@ -22,11 +26,6 @@ const userSchema: Schema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  username: {
-    type: String,
-    unique: true,
-    required: true,
-  },
   email: {
     type: String,
     unique: true,
@@ -36,19 +35,6 @@ const userSchema: Schema = new mongoose.Schema({
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       },
       message: "Invalid email format",
-    },
-  },
-  phone: {
-    type: String,
-    required: true,
-    unique: true,
-    validate: {
-      validator: (phone: string) => {
-        // regular expression
-        // Example: +1234567890 or 123-456-7890
-        return /^\+?\d{1,3}[- ]?\d{3}[- ]?\d{3}[- ]?\d{4}$/.test(phone);
-      },
-      message: "Invalid phone number format",
     },
   },
   password: {
@@ -65,6 +51,24 @@ const userSchema: Schema = new mongoose.Schema({
       message: "Password must be at least 8 characters long and contain at least one capital letter, one small letter, one digit, and one special character.",
     },
   },
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
+    validate: {
+      validator: (phone: string) => {
+        // regular expression
+        // Example: +1234567890 or 123-456-7890
+        return /^\+?\d{1,3}[- ]?\d{3}[- ]?\d{3}[- ]?\d{4}$/.test(phone);
+      },
+      message: "Invalid phone number format",
+    },
+  },
+  role: {
+    type: String,
+    enum: ["student", "instructor", "mentor", "admin"],
+    required: true,
+  },
   img: {
     type: String,
     validate: {
@@ -74,6 +78,16 @@ const userSchema: Schema = new mongoose.Schema({
       },
       message: "Image must be in .png, .jpg, .jpeg, or .webp format.",
     },
+  },
+  cohort: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Cohort",
+  },
+  status: {
+    type: String,
+    enum: ["active", "suspended", "graduated"],
+    default: "active",
+    required: true,
   },
   createdAt: {
     type: Date,

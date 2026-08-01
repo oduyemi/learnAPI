@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { hash, compare } from "bcrypt";
-import Admin, { IAdmin } from "../models/adminModel";
-import User, { IUser } from "../models/userModel";
+import Admin, { IAdmin } from "../models/admin.model";
+import User, { IUser } from "../models/user.model";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
 require("dotenv").config();
