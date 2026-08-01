@@ -7,7 +7,7 @@ export interface ICourse extends Document {
   desc: string;
   category: mongoose.Types.ObjectId;
   thumbnail: string;
-  instructor: mongoose.Types.ObjectId[];
+  instructors: mongoose.Types.ObjectId[];
   duration: string; 
   hasCertificate: Boolean
   certificateTemplate?: String  

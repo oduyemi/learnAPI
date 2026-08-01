@@ -1,61 +1,80 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
 import User, { IUser } from "../models/user.model";
-
-dotenv.config();
+import {
+  verifyToken,
+  UserRole,
+} from "../utils/auth";
 
 export interface AuthRequest extends Request {
-  userId?: string;
+  user?: IUser;
 }
 
-export const authenticateUser = (
+export const authenticate = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as {
-      sub: string;
-      type: string;
-    };
+    const authHeader = req.headers.authorization;
 
-    req.userId = payload.sub;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = verifyToken(token);
+
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (user.status === "suspended") {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been suspended.",
+      });
+    }
+
+    req.user = user;
+
     next();
-  } catch {
-    return res.status(401).json({ message: "Invalid or expired token" });
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token.",
+    });
   }
 };
 
+export const requireRole =
+  (...roles: UserRole[]) =>
+  (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
 
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to perform this action.",
+      });
+    }
 
-// export const checkAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
-//   if (!req.admin) {
-//     res.status(401).json({ message: "Unauthorized. User not authenticated." });
-//     return;
-//   }
-
-//   const allowedRoles = new Set(["admin", "superAdmin"]);
-//   if (!allowedRoles.has(req.user.role)) {
-//     res.status(403).json({ message: "Forbidden. User is not an admin." });
-//     return;
-//   }
-
-  // next();
-// };
-
-// export const checkSuperAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-//   if (!req.user || req.user.role !== "superAdmin") {
-//       res.status(403).json({ message: "Forbidden: Only super administrators can perform this action." });
-//       return;
-//   }
-//   next();
-// };
+    next();
+  };

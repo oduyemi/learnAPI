@@ -1,317 +1,381 @@
 import { Request, Response } from "express";
-import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import { hash, compare } from "bcrypt";
-import Admin, { IAdmin } from "../models/admin.model";
-import User, { IUser } from "../models/user.model";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import User from "../models/user.model";
 import { AuthRequest } from "../middlewares/auth.middleware";
+import { generateToken } from "../utils/auth";
+import { serializeUser } from "../utils/serializeUser";
+import { sendPasswordResetMail } from "../utils/sendEmail";
 
-require("dotenv").config();
-
-
-
-export interface AdminSession {
-  adminID: mongoose.Types.ObjectId;
-  fname: string;
-  lname: string;
-  email: string;
-  phone: string;
+interface ResetPasswordParams {
+  token: string;
 }
 
-declare module "express-session" {
-  interface SessionData {
-    admin?: AdminSession;
-  }
-}
-
-
-export const RegisterUser = async (req: Request, res: Response): Promise<void> => {
+export const login = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
-    const { fname, lname, username, email, phone, password, confirmPassword } = req.body;
-
-    if (![fname, lname, username, email, phone, password, confirmPassword].every(Boolean)) {
-      res.status(400).json({ message: "All fields are required" });
-      return;
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
     }
 
-    if (password !== confirmPassword) {
-      res.status(400).json({ message: "Passwords do not match" });
-      return;
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    }).select("+password");
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
     }
 
-    const existingUser = await User.findOne({
-      $or: [{ email }, { phone }, { username }],
-    });
-
-    if (existingUser) {
-      res.status(400).json({ message: "Phone, email, or username already exists" });
-      return;
+    if (user.status === "suspended") {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been suspended.",
+      });
     }
 
-    const hashedPassword = await hash(password, 10);
-
-    const user = await User.create({
-      fname,
-      lname,
-      username,
-      email,
-      phone,
-      password: hashedPassword,
-    });
-
-    const token = jwt.sign(
-      { sub: user._id, type: "user" },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+    const passwordMatch = await bcrypt.compare(
+      password,
+      user.password
     );
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
 
-    res.status(201).json({
-      message: "Registration successful",
+    user.lastLogin = new Date();
+    await user.save();
+    const token = generateToken(user);
+    return res.status(200).json({
+      success: true,
+      message: "Login successful.",
       token,
-      user: {
-        id: user._id,
-        fname,
-        lname,
-        username,
-        email,
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred.",
+    });
+  }
+};
+
+
+export const me = async (
+  req: AuthRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      user: req.user,
+    });
+  } catch (error) {
+    console.error("Me Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred.",
+    });
+  }
+};
+
+
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    const {fname, lname, email, phone, img} = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (email && email !== user.email) {
+      const existing = await User.findOne({
+        email: email.toLowerCase().trim(),
+        _id: { $ne: user._id },
+      });
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: "Email already exists.",
+        });
+      }
+      user.email = email.toLowerCase().trim();
+    }
+
+    if (phone && phone !== user.phone) {
+      const existing = await User.findOne({
         phone,
+        _id: { $ne: user._id },
+      });
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: "Phone number already exists.",
+        });
+      }
+      user.phone = phone;
+    }
+
+    if (fname !== undefined) user.fname = fname;
+    if (lname !== undefined) user.lname = lname;
+    if (img !== undefined) user.img = img;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully.",
+      user: {
+        _id: user._id,
+        fname: user.fname,
+        lname: user.lname,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        img: user.img,
+        cohort: user.cohort,
+        status: user.status,
+        updatedAt: user.updatedAt,
       },
     });
   } catch (error) {
-    console.error("RegisterUser Error:", error);
-    res.status(500).json({ message: "Error registering user" });
+    console.error("Update Profile Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred.",
+    });
   }
 };
 
-
-export const LoginUser = async (req: Request, res: Response): Promise<void> => {
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response
+): Promise<Response> => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ message: "Email and password are required" });
-      return;
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
     }
 
-    const user = await User.findOne({ email });
+    const {currentPassword, newPassword, confirmPassword} = req.body;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All password fields are required.",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match.",
+      });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
     if (!user) {
-      res.status(401).json({ message: "Invalid email or password" });
-      return;
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
     }
 
-    const isMatch = await compare(password, user.password);
-    if (!isMatch) {
-      res.status(401).json({ message: "Invalid email or password" });
-      return;
-    }
-
-    const token = jwt.sign(
-      { sub: user._id, type: "user" },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
     );
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect.",
+      });
+    }
 
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      nextStep: "/dashboard",
+    const samePassword = await bcrypt.compare(
+      newPassword,
+      user.password
+    );
+    if (samePassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from the current password.",
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(
+      newPassword,
+      salt
+    );
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully.",
     });
   } catch (error) {
-    console.error("LoginUser Error:", error);
-    res.status(500).json({ message: "Error logging in user" });
+    console.error("Change Password Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred.",
+    });
   }
 };
 
 
-
-
-
-export const RegisterAdmin = async (req: Request, res: Response): Promise<void> => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
-    const { fname, lname, email, phone, password, confirmPassword } = req.body;
+    const { email } = req.body;
 
-    if (![fname, lname, email, phone, password, confirmPassword].every(Boolean)) {
-      res.status(400).json({ message: "All fields are required" });
-      return;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    }).select("+resetPasswordToken +resetPasswordExpires");
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with that email, a password reset link has been sent.",
+      });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+
+    user.resetPasswordExpires = new Date(
+      Date.now() + 15 * 60 * 1000
+    );
+
+    await user.save();
+
+    const resetLink = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+
+    await sendPasswordResetMail(
+      user.email,
+      resetLink
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "If an account exists with that email, a password reset link has been sent.",
+    });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to process request.",
+    });
+  }
+};
+
+
+export const resetPassword = async (req: Request<ResetPasswordParams>, res: Response): Promise<Response> => {
+  try {
+    const { token } = req.params;
+    const { password, confirmPassword } = req.body;
+    if (!password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password and confirmation are required.",
+      });
     }
 
     if (password !== confirmPassword) {
-      res.status(400).json({ message: "Passwords do not match" });
-      return;
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match.",
+      });
     }
 
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      res.status(400).json({ message: "Email already registered" });
-      return;
-    }
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
-    const hashedPassword = await hash(password, 10);
-    const newAdmin: IAdmin = new Admin({ fname, lname, email, phone, password: hashedPassword });
-    await newAdmin.save();
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: {
+        $gt: new Date(),
+      },
+    }).select("+password +resetPasswordToken +resetPasswordExpires");
 
-    const token = jwt.sign(
-      { id: newAdmin._id },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
-    
-    const adminSession: AdminSession = {
-      adminID: newAdmin._id,
-      fname,
-      lname,
-      email,
-      phone,
-    };
-
-    req.session.admin = adminSession;
-
-    res.status(201).json({ message: "Admin registered successfully", token, nextStep: "/admin-login" });
-  } catch (error) {
-    console.error("RegisterAdmin Error:", error);
-    res.status(500).json({ message: "Error registering admin" });
-  }
-};
-
-export const LoginAdmin = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ message: "Email and password are required" });
-      return;
-    }
-
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      res.status(401).json({ message: "Email not registered" });
-      return;
-    }
-
-    const isPasswordMatch = await compare(password, admin.password);
-    if (!isPasswordMatch) {
-      res.status(401).json({ message: "Incorrect email or password" });
-      return;
-    }
-
-    const token = jwt.sign(
-      { adminID: admin._id, email: admin.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
-
-    const adminSession: AdminSession = {
-      adminID: admin._id,
-      fname: admin.fname,
-      lname: admin.lname,
-      email: admin.email,
-      phone: admin.phone,
-    };
-
-    req.session.admin = adminSession;
-
-    res.status(200).json({ message: "Admin login successful", token, nextStep: "/admin-dashboard" });
-  } catch (error) {
-    console.error("LoginAdmin Error:", error);
-    res.status(500).json({ message: "Error logging in admin" });
-  }
-};
-
-export const UpdateUserProfile = async (
-  req: AuthRequest,
-  res: Response
-) => {
-  try {
-    const userId = req.userId; // ✅ identity from JWT
-
-    const { username, email, phone, img } = req.body;
-
-    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset link.",
+      });
     }
 
-    if (username !== undefined) user.username = username;
-    if (email !== undefined) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (img !== undefined) user.img = img;
+    const salt = await bcrypt.genSalt(10);
+
+    user.password = await bcrypt.hash(
+      password,
+      salt
+    );
+
+    user.resetPasswordToken = undefined;
+
+    user.resetPasswordExpires = undefined;
 
     await user.save();
 
-    res.status(200).json({
-      message: "Profile updated successfully",
-      user,
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password has been reset successfully. You can now log in.",
     });
   } catch (error) {
-    console.error("UpdateUserProfile Error:", error);
-    res.status(500).json({ message: "Failed to update profile" });
-  }
-};
+    console.error("Reset Password Error:", error);
 
-
-
-
-export const UpdateAdminProfile = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const adminId = req.params.adminId;
-    const updatedAdminData: Partial<IAdmin> = req.body;
-
-    const requiredFields = ["fname", "lname", "email", "phone"];
-    const missingFields = requiredFields.filter(field => !(field in updatedAdminData));
-
-    if (missingFields.length > 0) {
-      res.status(400).json({ message: `Missing required fields: ${missingFields.join(", ")}` });
-      return;
-    }
-
-    const updatedAdmin = await Admin.findByIdAndUpdate(adminId, updatedAdminData, { new: true });
-    if (!updatedAdmin) {
-      res.status(404).json({ message: "Admin not found" });
-      return;
-    }
-
-    res.status(200).json({ message: "Admin updated successfully", data: updatedAdmin });
-  } catch (error) {
-    console.error("Error updating admin profile", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-
-
-export const ResetUserPassword = async (
-  req: AuthRequest,
-  res: Response
-) => {
-  try {
-    const userId = req.userId; // ✅ from JWT
-
-    const { oldPassword, newPassword, confirmNewPassword } = req.body;
-
-    if (!oldPassword || !newPassword || !confirmNewPassword) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      return res.status(400).json({ message: "Passwords must match" });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const match = await bcrypt.compare(oldPassword, user.password);
-    if (!match) {
-      return res.status(400).json({ message: "Incorrect old password" });
-    }
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    await user.save();
-
-    res.status(200).json({ message: "Password reset successful" });
-  } catch (error) {
-    console.error("ResetUserPassword Error:", error);
-    res.status(500).json({ message: "Failed to reset password" });
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reset password.",
+    });
   }
 };

@@ -1,45 +1,19 @@
 import { Router } from "express";
-import {
-  RegisterUser,
-  LoginUser,
-  UpdateUserProfile,
-  ResetUserPassword,
-} from "../controllers/auth.controller";
-import { authenticateUser } from "../middlewares/auth.middleware";
-import {
-  validateRequestBody,
-  validatePassword,
-} from "../middlewares/validation.middleware";
+import { changePassword, forgotPassword, login, me, resetPassword, updateProfile } from "../controllers/auth.controller";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
 
 
-router.post(
-  "/register",
-  validateRequestBody([
-    "fname",
-    "lname",
-    "email",
-    "phone",
-    "username",
-    "password",
-    "confirmPassword",
-  ]),
-  validatePassword,
-  RegisterUser
-);
+router.post("/login", login);
+router.get("/me", authenticate, me);
+router.patch("/profile", authenticate, updateProfile);
+router.patch("/change-password", authenticate, changePassword);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+// router.post("/logout", (_req, res) => {
+//   return res.status(200).json({ message: "Logout successful" });
+// });
 
-router.post(
-  "/login",
-  validateRequestBody(["email", "password"]),
-  LoginUser
-);
-
-router.post("/logout", (_req, res) => {
-  return res.status(200).json({ message: "Logout successful" });
-});
-
-router.put("/update", authenticateUser, UpdateUserProfile);
-router.put("/reset-password", authenticateUser, ResetUserPassword);
 
 export default router;

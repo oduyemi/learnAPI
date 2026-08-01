@@ -4,14 +4,11 @@ import dotenv from "dotenv";
 import cors from "cors";
 import appRoutes from "./routes/app.route";
 import authRoutes from "./routes/auth.route";
-import adminRoutes from "./routes/admin.route";
-
+import userRoutes from "./routes/user.route";
 import db from "./db";
 
 dotenv.config();
-
 const app: Application = express();
-
 const allowedOrigins = [
   "https://learn.progrowing.org",
   "https://www.learn.progrowing.org",
@@ -33,7 +30,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // ---------------- Routes ----------------
 app.use("/", appRoutes);
 app.use("/auth", authRoutes);
-app.use("/admin", adminRoutes);
+app.use("/users", userRoutes);
 // app.use("/send", sendRouter);
 // app.use("/update", updateRouter);
 // app.use("/erase", eraseRouter);

@@ -9,7 +9,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
 const app_route_1 = __importDefault(require("./routes/app.route"));
 const auth_route_1 = __importDefault(require("./routes/auth.route"));
-const admin_route_1 = __importDefault(require("./routes/admin.route"));
+const user_route_1 = __importDefault(require("./routes/user.route"));
 const db_1 = __importDefault(require("./db"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -29,7 +29,7 @@ app.use(body_parser_1.default.urlencoded({ extended: true }));
 // ---------------- Routes ----------------
 app.use("/", app_route_1.default);
 app.use("/auth", auth_route_1.default);
-app.use("/admin", admin_route_1.default);
+app.use("/users", user_route_1.default);
 // app.use("/send", sendRouter);
 // app.use("/update", updateRouter);
 // app.use("/erase", eraseRouter);

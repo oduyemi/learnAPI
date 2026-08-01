@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId; 
   fname: string;
@@ -12,6 +11,8 @@ export interface IUser extends Document {
   img: string;
   cohort: mongoose.Types.ObjectId;           
   status: "active" | "suspended" | "graduated";
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   lastLogin:Date;
   createdAt: Date;
   updatedAt: Date;
@@ -92,6 +93,16 @@ const userSchema: Schema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null,
+    select: false,
   },
 });
 
