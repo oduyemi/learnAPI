@@ -7,6 +7,7 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 import dbConnect from "../db";
 import { validateUsersByRole } from "../middlewares/validation.middleware";
 import Cohort from "../models/cohort.model";
+import Enrollment from "../models/enrollment.model";
 
 
 
