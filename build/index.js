@@ -11,6 +11,7 @@ const app_route_1 = __importDefault(require("./routes/app.route"));
 const auth_route_1 = __importDefault(require("./routes/auth.route"));
 const user_route_1 = __importDefault(require("./routes/user.route"));
 const cohort_route_1 = __importDefault(require("./routes/cohort.route"));
+const course_route_1 = __importDefault(require("./routes/course.route"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
@@ -27,6 +28,7 @@ app.use("/", app_route_1.default);
 app.use("/auth", auth_route_1.default);
 app.use("/users", user_route_1.default);
 app.use("/cohort", cohort_route_1.default);
+app.use("/course", course_route_1.default);
 app.use((req, res) => {
     res.status(404).json({
         success: false,
