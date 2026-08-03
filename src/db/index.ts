@@ -1,25 +1,52 @@
-import mongoose, { Connection } from "mongoose";
-require('dotenv').config();
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
+dotenv.config();
 
-const mongoDB: string = process.env.MONGODB_URI !== undefined ? process.env.MONGODB_URI : "mongodb://127.0.0.1:27017/prolearn";
+const MONGODB_URI = process.env.MONGODB_URI;
 
+if (!MONGODB_URI) {
+  throw new Error("MONGODB_URI is not defined.");
+}
 
+declare global {
+  var mongooseCache:
+    | {
+        conn: typeof mongoose | null;
+        promise: Promise<typeof mongoose> | null;
+      }
+    | undefined;
+}
 
-mongoose
-  .connect(mongoDB)
-  .catch((e: Error) => {
-    console.error("connection-error", e.message);
-  });
+const cached = global.mongooseCache || {
+  conn: null,
+  promise: null,
+};
 
-const db: Connection = mongoose.connection;
+global.mongooseCache = cached;
 
-db.on("error", (error) => {
-  console.error("MongoDB connection error:", error);
-});
+export const dbConnect = async (): Promise<typeof mongoose> => {
+  if (cached.conn) {
+    return cached.conn;
+  }
 
-db.once("open", () => {
-  console.log("Connected to MongoDB");
-});
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      bufferCommands: false,
+    });
+  }
 
-export default db;
+  try {
+    cached.conn = await cached.promise;
+
+    console.log("MongoDB connected");
+
+    return cached.conn;
+  } catch (error) {
+    cached.promise = null;
+    console.error("MongoDB connection failed:", error);
+    throw error;
+  }
+};
+
+export default dbConnect;

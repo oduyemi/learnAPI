@@ -1,102 +1,76 @@
-import { transporter } from "./tansporter";
-import { escapeHtml } from "./escapeHtml";
-import { sendEmailWithRetry } from "./emailLogic";
-
-export const sendEmail = async (
-  to: string,
-  subject: string,
-  html: string
-) => {
-  await transporter.sendMail({
-    from: `"ProGrowing Support" <support@progrowing.org>`,
-    to,
-    subject,
-    html,
-  });
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.sendPasswordResetMail = exports.sendOnboardingMail = exports.sendMentorOnboardingMail = exports.sendInstructorOnboardingMail = exports.sendAdminOnboardingMail = exports.sendEmail = void 0;
+const tansporter_1 = require("./tansporter");
+const escapeHtml_1 = require("./escapeHtml");
+const emailLogic_1 = require("./emailLogic");
+const sendEmail = async (to, subject, html) => {
+    await tansporter_1.transporter.sendMail({
+        from: `"ProGrowing Support" <support@progrowing.org>`,
+        to,
+        subject,
+        html,
+    });
 };
-
-
-export const sendAdminOnboardingMail = async (recipient: string, code: string) => {
-  const htmlContent = `
+exports.sendEmail = sendEmail;
+const sendAdminOnboardingMail = async (recipient, code) => {
+    const htmlContent = `
     <div style="font-family: Arial, sans-serif;">
       <h2>Admin Onboarding - ProGrowing Training & Mentorship Community</h2>
       <p>Hi there,</p>
       <p>Welcome onboard! This is your access to the admin dashboard. Please update your password when you're logged in:</p>
-      <h1 style="color: #010156;">${escapeHtml(code)}</h1>
+      <h1 style="color: #010156;">${(0, escapeHtml_1.escapeHtml)(code)}</h1>
       <p>We look forward to having a great time working together.</p>
       <p>Best regards,<br/>ProGrowing Community</p>
     </div>
   `;
-
-  await sendEmailWithRetry(
-    recipient,
-    "Onboarding for new Administrators",
-    htmlContent
-  );
+    await (0, emailLogic_1.sendEmailWithRetry)(recipient, "Onboarding for new Administrators", htmlContent);
 };
-
-export const sendInstructorOnboardingMail = async (recipient: string, code: string) => {
-  const htmlContent = `
+exports.sendAdminOnboardingMail = sendAdminOnboardingMail;
+const sendInstructorOnboardingMail = async (recipient, code) => {
+    const htmlContent = `
     <div style="font-family: Arial, sans-serif;">
       <h2>Instructor Onboarding - ProGrowing Training & Mentorship Community</h2>
       <p>Hi there,</p>
       <p>Welcome onboard! This is your access to the instructor dashboard. Please update your password when you're logged in:</p>
-      <h1 style="color: #010156;">${escapeHtml(code)}</h1>
+      <h1 style="color: #010156;">${(0, escapeHtml_1.escapeHtml)(code)}</h1>
       <p>We look forward to having a great time working together.</p>
       <p>Best regards,<br/>ProGrowing Community</p>
     </div>
   `;
-
-  await sendEmailWithRetry(
-    recipient,
-    "Onboarding for new Instructors",
-    htmlContent
-  );
+    await (0, emailLogic_1.sendEmailWithRetry)(recipient, "Onboarding for new Instructors", htmlContent);
 };
-
-export const sendMentorOnboardingMail = async (recipient: string, code: string) => {
-  const htmlContent = `
+exports.sendInstructorOnboardingMail = sendInstructorOnboardingMail;
+const sendMentorOnboardingMail = async (recipient, code) => {
+    const htmlContent = `
     <div style="font-family: Arial, sans-serif;">
       <h2>Mentor Onboarding - ProGrowing Training & Mentorship Community</h2>
       <p>Hi there,</p>
       <p>Welcome onboard! This is your access to the mentor dashboard. Please update your password when you're logged in:</p>
-      <h1 style="color: #010156;">${escapeHtml(code)}</h1>
+      <h1 style="color: #010156;">${(0, escapeHtml_1.escapeHtml)(code)}</h1>
       <p>We look forward to having a great time working together.</p>
       <p>Best regards,<br/>ProGrowing Community</p>
     </div>
   `;
-
-  await sendEmailWithRetry(
-    recipient,
-    "Onboarding for new Mentors",
-    htmlContent
-  );
+    await (0, emailLogic_1.sendEmailWithRetry)(recipient, "Onboarding for new Mentors", htmlContent);
 };
-
-export const sendOnboardingMail = async (recipient: string, code: string) => {
-  const htmlContent = `
+exports.sendMentorOnboardingMail = sendMentorOnboardingMail;
+const sendOnboardingMail = async (recipient, code) => {
+    const htmlContent = `
     <div style="font-family: Arial, sans-serif;">
       <h2>Student LMS Onboarding - ProGrowing Training & Mentorship Community</h2>
       <p>Hi there,</p>
       <p>Welcome onboard! This is your access to the LMS dashboard. Please update your password when you're logged in:</p>
-      <h1 style="color: #010156;">${escapeHtml(code)}</h1>
+      <h1 style="color: #010156;">${(0, escapeHtml_1.escapeHtml)(code)}</h1>
       <p>We look forward to having a great time working together.</p>
       <p>Best regards,<br/>ProGrowing Community</p>
     </div>
   `;
-
-  await sendEmailWithRetry(
-    recipient,
-    "LMS Onboarding for new Students",
-    htmlContent
-  );
+    await (0, emailLogic_1.sendEmailWithRetry)(recipient, "LMS Onboarding for new Students", htmlContent);
 };
-
-export const sendPasswordResetMail = async (
-  recipient: string,
-  resetLink: string
-) => {
-  const htmlContent = `
+exports.sendOnboardingMail = sendOnboardingMail;
+const sendPasswordResetMail = async (recipient, resetLink) => {
+    const htmlContent = `
     <div style="font-family: Arial, sans-serif;">
       <h2>Password Reset Request</h2>
 
@@ -112,7 +86,7 @@ export const sendPasswordResetMail = async (
 
       <p style="margin:30px 0;">
         <a
-          href="${escapeHtml(resetLink)}"
+          href="${(0, escapeHtml_1.escapeHtml)(resetLink)}"
           style="
             background:#010156;
             color:white;
@@ -140,10 +114,6 @@ export const sendPasswordResetMail = async (
       </p>
     </div>
   `;
-
-  await sendEmailWithRetry(
-    recipient,
-    "Reset your password",
-    htmlContent
-  );
+    await (0, emailLogic_1.sendEmailWithRetry)(recipient, "Reset your password", htmlContent);
 };
+exports.sendPasswordResetMail = sendPasswordResetMail;

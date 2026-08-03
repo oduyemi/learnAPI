@@ -7,13 +7,11 @@ const router = Router();
 
 router.get("/", authenticate, requireRole("admin"), getUsers);
 router.get<{ role: string }>("/role/:role", authenticate, requireRole("admin"), getUsersByRole);
-router.get("/cohort/:cohortId", authenticate, requireRole("admin"), getStudentsByCohort);
-router.get("/:id", authenticate, requireRole("admin"), getUser);
-router.get("/course/:courseId/instructors", authenticate, requireRole("admin"), getInstructorsByCourse);
-router.post("/new", 
-    validateRequestBody(["fname", "lname", "email", "phone", "role"]), 
-    validatePassword,
-    createUser
-  );
+router.get("/student/cohort/:cohortId", authenticate, requireRole("admin"), getStudentsByCohort);
+router.get("/user/:id", authenticate, requireRole("admin"), getUser);
+router.get("/instructor/course/:courseId/instructors", authenticate, requireRole("admin"), getInstructorsByCourse);
+router.post("/new", createUser);
+
+
 
 export default router;

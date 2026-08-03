@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import User from "../models/user.model";
 
 // Validate request body
 export const validateRequestBody = (requiredFields: string[]) => {
@@ -27,4 +28,18 @@ export const validatePassword = (req: Request, res: Response, next: NextFunction
     }
 
     next();
+};
+
+
+export const validateUsersByRole = async (
+  ids: string[],
+  role: "student" | "mentor" | "instructor" | "admin"
+) => {
+  const uniqueIds = [...new Set(ids)];
+  const users = await User.find({
+    _id: { $in: uniqueIds },
+    role,
+  });
+
+  return users.length === uniqueIds.length ? users : null;
 };

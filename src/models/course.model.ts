@@ -1,80 +1,103 @@
 import mongoose, { Schema, Document } from "mongoose";
+import slugify from "slugify";
 
 export interface ICourse extends Document {
-  _id: mongoose.Types.ObjectId; 
+  _id: mongoose.Types.ObjectId;
   title: string;
   slug: string;
   desc: string;
   category: mongoose.Types.ObjectId;
   thumbnail: string;
   instructors: mongoose.Types.ObjectId[];
-  duration: string; 
-  hasCertificate: Boolean
-  certificateTemplate?: String  
+  duration: string;
+  hasCertificate: boolean;
+  certificateTemplate?: string;
   isGeneral: boolean;
-  img: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
+  updatedAt: Date;
 }
 
-
-
-
-const courseSchema: Schema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true
-  },
-  slug: {
-    type: String,
-    unique: true
-  },
-  desc: {
-    type: String,
-    required: true
-  },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
-  },
-  thumbnail: {
-    type: String,
-    required: true,
-    validate: {
-      validator: (img: string) => {
-        // Validate image file extension
-        return /\.(png|jpg|jpeg|webp)$/.test(img);
-      },
-      message: "Image must be in .png, .jpg, .jpeg, or .webp format.",
+const courseSchema = new Schema<ICourse>(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
     },
-  },
-  instructors: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
+
+    slug: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+
+    desc: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    category: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
+
+    thumbnail: {
+      type: String,
+      required: true,
+    },
+
+    instructors: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    duration: {
+      type: String,
+      required: true,
+    },
+
+    hasCertificate: {
+      type: Boolean,
+      default: false,
+    },
+
+    certificateTemplate: {
+      type: String,
+    },
+
+    isGeneral: {
+      type: Boolean,
+      default: false,
+    },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-  ],
-  duration: {
-    type: String,
-    required: true
   },
-  certificate: {
-    type: String,
-    required: true
-  },
-  isGeneral: {
-    type: Boolean,
-    default: false
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
+  {
+    timestamps: true,
+  }
+);
+
+courseSchema.pre("save", function (next) {
+  if (this.isModified("title")) {
+    this.slug = slugify(this.title, {
+      lower: true,
+      strict: true,
+      trim: true,
+    });
+  }
+
+  next();
 });
 
 const Course = mongoose.model<ICourse>("Course", courseSchema);
+
 export default Course;

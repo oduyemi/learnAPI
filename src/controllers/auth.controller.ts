@@ -6,16 +6,15 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 import { generateToken } from "../utils/auth";
 import { serializeUser } from "../utils/serializeUser";
 import { sendPasswordResetMail } from "../utils/sendEmail";
+import { dbConnect } from "../db/index";
 
 interface ResetPasswordParams {
   token: string;
 }
 
-export const login = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
+export const login = async (req: Request, res: Response): Promise<Response> => {
   try {
+    await dbConnect();
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({
@@ -61,14 +60,15 @@ export const login = async (
       token,
       user: serializeUser(user),
     });
-  } catch (error) {
-    console.error("Login Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "An unexpected error occurred.",
-    });
-  }
+  } catch (error: any) {
+      console.error(error);
+    
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        error,
+      });
+    }
 };
 
 
@@ -77,6 +77,7 @@ export const me = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await dbConnect();
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -99,6 +100,7 @@ export const me = async (
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
+    await dbConnect();
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -178,6 +180,7 @@ export const changePassword = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await dbConnect();
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -257,6 +260,7 @@ export const forgotPassword = async (
   res: Response
 ): Promise<Response> => {
   try {
+    await dbConnect();
     const { email } = req.body;
 
     if (!email) {
@@ -317,6 +321,7 @@ export const forgotPassword = async (
 
 export const resetPassword = async (req: Request<ResetPasswordParams>, res: Response): Promise<Response> => {
   try {
+    await dbConnect();
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
     if (!password || !confirmPassword) {
