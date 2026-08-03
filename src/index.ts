@@ -6,7 +6,8 @@ import appRoutes from "./routes/app.route";
 import authRoutes from "./routes/auth.route";
 import userRoutes from "./routes/user.route";
 import cohortRoutes from "./routes/cohort.route";
-import courseRoute from "./routes/course.route";
+import courseRoutes from "./routes/course.route";
+import categoryRoutes from "./routes/category.route";
 
 dotenv.config();
 
@@ -30,7 +31,8 @@ app.use("/", appRoutes);
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/cohort", cohortRoutes);
-app.use("/course", courseRoute);
+app.use("/course", courseRoutes);
+app.use("/course-category", categoryRoutes);
 
 
 app.use((req, res) => {
