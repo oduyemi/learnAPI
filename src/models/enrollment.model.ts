@@ -27,6 +27,6 @@ const enrollmentSchema: Schema = new mongoose.Schema({
     }
 );
 
-const Enrollment = mongoose.model<IEnrollment>("Cohort", enrollmentSchema);
+const Enrollment = mongoose.model<IEnrollment>("Enrollment", enrollmentSchema);
 
 export default Enrollment;

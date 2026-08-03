@@ -8,39 +8,63 @@ import dbConnect from "../db";
 import { validateUsersByRole } from "../middlewares/validation.middleware";
 import Cohort from "../models/cohort.model";
 import Enrollment from "../models/enrollment.model";
-
+import { uploadBuffer } from "../utils/cloudinaryUpload";
 
 
 export const createCourse = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
     await dbConnect();
     if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized.",
-        });
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
     }
-    const {title, desc, category, thumbnail, instructors, duration, hasCertificate, certificateTemplate, isGeneral} = req.body;
+
+    const {
+      title,
+      desc,
+      category,
+      instructors,
+      duration,
+      hasCertificate,
+      certificateTemplate,
+      isGeneral,
+    } = req.body;
+
     const cleanedTitle = title?.trim().replace(/\s+/g, " ");
     const cleanedDesc = desc?.trim().replace(/\s+/g, " ");
     const cleanedDuration = duration?.trim();
-    const cleanedThumbnail = thumbnail?.trim();
-    if (!cleanedTitle || !cleanedDesc || !category || !cleanedThumbnail || !cleanedDuration) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Title, description, category, thumbnail and duration are required.",
-        });
-      }
 
-    if (hasCertificate && !certificateTemplate) {
-        return res.status(400).json({
-          success: false,
-          message: "Certificate template is required.",
-        });
+    if (
+      !cleanedTitle ||
+      !cleanedDesc ||
+      !category ||
+      !cleanedDuration
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Title, description, category and duration are required.",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Course thumbnail is required.",
+      });
+    }
+
+    if (hasCertificate && !certificateTemplate?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Certificate template is required.",
+      });
     }
 
     const existingCategory = await Category.findById(category);
+
     if (!existingCategory) {
       return res.status(404).json({
         success: false,
@@ -48,64 +72,72 @@ export const createCourse = async (req: AuthRequest, res: Response): Promise<Res
       });
     }
 
+    const existingTitle = await Course.findOne({
+      title: {
+        $regex: new RegExp(`^${cleanedTitle}$`, "i"),
+      },
+    });
+
+    if (existingTitle) {
+      return res.status(409).json({
+        success: false,
+        message: "A course with this title already exists.",
+      });
+    }
+
+    const slug = slugify(cleanedTitle, {
+      lower: true,
+      strict: true,
+      trim: true,
+    });
+
+    const existingSlug = await Course.findOne({ slug });
+
+    if (existingSlug) {
+      return res.status(409).json({
+        success: false,
+        message: "A course with this slug already exists.",
+      });
+    }
+
     let instructorIds: mongoose.Types.ObjectId[] = [];
+
     if (Array.isArray(instructors) && instructors.length > 0) {
       const instructorUsers = await validateUsersByRole(
         instructors,
         "instructor"
       );
-    
+
       if (!instructorUsers) {
         return res.status(400).json({
           success: false,
           message: "One or more instructors are invalid.",
         });
       }
-    
-      instructorIds = instructorUsers.map(user => user._id);
+
+      instructorIds = instructorUsers.map((user) => user._id);
     }
 
-    const slug = slugify(cleanedTitle, {
-        lower: true,
-        strict: true,
-        trim: true,
+    // Upload thumbnail to Cloudinary
+    const uploadedThumbnail = await uploadBuffer(req.file.buffer, {
+      folder: "progrowing/courses",
+      publicId: slug,
+      overwrite: true,
     });
-
-    const existingTitle = await Course.findOne({
-        title: {
-          $regex: new RegExp(`^${cleanedTitle}$`, "i"),
-        },
-      });
-      
-      if (existingTitle) {
-        return res.status(409).json({
-          success: false,
-          message: "A course with this title already exists.",
-        });
-      }
-      
-      const existingSlug = await Course.findOne({ slug });
-      
-      if (existingSlug) {
-        return res.status(409).json({
-          success: false,
-          message: "A course with this slug already exists.",
-        });
-    }
 
     const course = await Course.create({
       title: cleanedTitle,
       slug,
       desc: cleanedDesc,
       category,
-      thumbnail: cleanedThumbnail,
+      thumbnail: uploadedThumbnail.secure_url,
       instructors: instructorIds,
       duration: cleanedDuration,
       hasCertificate: hasCertificate ?? false,
       certificateTemplate:
-          hasCertificate && certificateTemplate
-            ? certificateTemplate.trim()
-            : undefined,
+        hasCertificate && certificateTemplate
+          ? certificateTemplate.trim()
+          : undefined,
       isGeneral: isGeneral ?? false,
       createdBy: req.user._id,
     });
@@ -526,4 +558,57 @@ export const deleteCourse = async (req: AuthRequest, res: Response): Promise<Res
             message: "Unable to delete course.",
         });
     }
-  };
+};
+
+
+export const updateCourseThumbnail = async (req: AuthRequest, res: Response): Promise<Response> => {
+  try {
+    await dbConnect();
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload a thumbnail.",
+      });
+    }
+
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found.",
+      });
+    }
+
+    const uploaded = await uploadBuffer(req.file.buffer, {
+      folder: "progrowing/courses",
+      publicId: course.slug,
+      overwrite: true,
+    });
+
+    course.thumbnail = uploaded.secure_url;
+    await course.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Thumbnail updated successfully.",
+      data: {
+        _id: course._id,
+        thumbnail: course.thumbnail,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to upload thumbnail.",
+    });
+  }
+};

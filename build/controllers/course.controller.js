@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteCourse = exports.updateCourse = exports.getCourse = exports.getCoursesByInstructor = exports.getCoursesByCategory = exports.getGeneralCourses = exports.getCourses = exports.createCourse = void 0;
+exports.updateCourseThumbnail = exports.deleteCourse = exports.updateCourse = exports.getCourse = exports.getCoursesByInstructor = exports.getCoursesByCategory = exports.getGeneralCourses = exports.getCourses = exports.createCourse = void 0;
 const slugify_1 = __importDefault(require("slugify"));
 const course_model_1 = __importDefault(require("../models/course.model"));
 const category_model_1 = __importDefault(require("../models/category.model"));
@@ -11,6 +11,7 @@ const db_1 = __importDefault(require("../db"));
 const validation_middleware_1 = require("../middlewares/validation.middleware");
 const cohort_model_1 = __importDefault(require("../models/cohort.model"));
 const enrollment_model_1 = __importDefault(require("../models/enrollment.model"));
+const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const createCourse = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -20,18 +21,26 @@ const createCourse = async (req, res) => {
                 message: "Unauthorized.",
             });
         }
-        const { title, desc, category, thumbnail, instructors, duration, hasCertificate, certificateTemplate, isGeneral } = req.body;
+        const { title, desc, category, instructors, duration, hasCertificate, certificateTemplate, isGeneral, } = req.body;
         const cleanedTitle = title?.trim().replace(/\s+/g, " ");
         const cleanedDesc = desc?.trim().replace(/\s+/g, " ");
         const cleanedDuration = duration?.trim();
-        const cleanedThumbnail = thumbnail?.trim();
-        if (!cleanedTitle || !cleanedDesc || !category || !cleanedThumbnail || !cleanedDuration) {
+        if (!cleanedTitle ||
+            !cleanedDesc ||
+            !category ||
+            !cleanedDuration) {
             return res.status(400).json({
                 success: false,
-                message: "Title, description, category, thumbnail and duration are required.",
+                message: "Title, description, category and duration are required.",
             });
         }
-        if (hasCertificate && !certificateTemplate) {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Course thumbnail is required.",
+            });
+        }
+        if (hasCertificate && !certificateTemplate?.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Certificate template is required.",
@@ -44,22 +53,6 @@ const createCourse = async (req, res) => {
                 message: "Category not found.",
             });
         }
-        let instructorIds = [];
-        if (Array.isArray(instructors) && instructors.length > 0) {
-            const instructorUsers = await (0, validation_middleware_1.validateUsersByRole)(instructors, "instructor");
-            if (!instructorUsers) {
-                return res.status(400).json({
-                    success: false,
-                    message: "One or more instructors are invalid.",
-                });
-            }
-            instructorIds = instructorUsers.map(user => user._id);
-        }
-        const slug = (0, slugify_1.default)(cleanedTitle, {
-            lower: true,
-            strict: true,
-            trim: true,
-        });
         const existingTitle = await course_model_1.default.findOne({
             title: {
                 $regex: new RegExp(`^${cleanedTitle}$`, "i"),
@@ -71,6 +64,11 @@ const createCourse = async (req, res) => {
                 message: "A course with this title already exists.",
             });
         }
+        const slug = (0, slugify_1.default)(cleanedTitle, {
+            lower: true,
+            strict: true,
+            trim: true,
+        });
         const existingSlug = await course_model_1.default.findOne({ slug });
         if (existingSlug) {
             return res.status(409).json({
@@ -78,12 +76,29 @@ const createCourse = async (req, res) => {
                 message: "A course with this slug already exists.",
             });
         }
+        let instructorIds = [];
+        if (Array.isArray(instructors) && instructors.length > 0) {
+            const instructorUsers = await (0, validation_middleware_1.validateUsersByRole)(instructors, "instructor");
+            if (!instructorUsers) {
+                return res.status(400).json({
+                    success: false,
+                    message: "One or more instructors are invalid.",
+                });
+            }
+            instructorIds = instructorUsers.map((user) => user._id);
+        }
+        // Upload thumbnail to Cloudinary
+        const uploadedThumbnail = await (0, cloudinaryUpload_1.uploadBuffer)(req.file.buffer, {
+            folder: "progrowing/courses",
+            publicId: slug,
+            overwrite: true,
+        });
         const course = await course_model_1.default.create({
             title: cleanedTitle,
             slug,
             desc: cleanedDesc,
             category,
-            thumbnail: cleanedThumbnail,
+            thumbnail: uploadedThumbnail.secure_url,
             instructors: instructorIds,
             duration: cleanedDuration,
             hasCertificate: hasCertificate ?? false,
@@ -464,3 +479,50 @@ const deleteCourse = async (req, res) => {
     }
 };
 exports.deleteCourse = deleteCourse;
+const updateCourseThumbnail = async (req, res) => {
+    try {
+        await (0, db_1.default)();
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized.",
+            });
+        }
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Please upload a thumbnail.",
+            });
+        }
+        const course = await course_model_1.default.findById(req.params.id);
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found.",
+            });
+        }
+        const uploaded = await (0, cloudinaryUpload_1.uploadBuffer)(req.file.buffer, {
+            folder: "progrowing/courses",
+            publicId: course.slug,
+            overwrite: true,
+        });
+        course.thumbnail = uploaded.secure_url;
+        await course.save();
+        return res.status(200).json({
+            success: true,
+            message: "Thumbnail updated successfully.",
+            data: {
+                _id: course._id,
+                thumbnail: course.thumbnail,
+            },
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to upload thumbnail.",
+        });
+    }
+};
+exports.updateCourseThumbnail = updateCourseThumbnail;

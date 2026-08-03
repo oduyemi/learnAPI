@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getInstructorsByCourse = exports.getUser = exports.getStudentsByCohort = exports.getUsersByRole = exports.getUsers = exports.createUser = void 0;
+exports.updateProfilePicture = exports.getInstructorsByCourse = exports.getUser = exports.getStudentsByCohort = exports.getUsersByRole = exports.getUsers = exports.createUser = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const user_model_1 = __importDefault(require("../models/user.model"));
 const cohort_model_1 = __importDefault(require("../models/cohort.model"));
@@ -12,6 +12,7 @@ const sendEmail_1 = require("../utils/sendEmail");
 const serializeUser_1 = require("../utils/serializeUser");
 const course_model_1 = __importDefault(require("../models/course.model"));
 const db_1 = __importDefault(require("../db"));
+const cloudinaryUpload_1 = require("../utils/cloudinaryUpload");
 const createUser = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -280,3 +281,45 @@ const getInstructorsByCourse = async (req, res) => {
     }
 };
 exports.getInstructorsByCourse = getInstructorsByCourse;
+const updateProfilePicture = async (req, res) => {
+    try {
+        await (0, db_1.default)();
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized.",
+            });
+        }
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Please upload an image.",
+            });
+        }
+        const user = await user_model_1.default.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+        const uploaded = await (0, cloudinaryUpload_1.uploadBuffer)(req.file.buffer, {
+            folder: "progrowing/users",
+        });
+        user.img = uploaded.secure_url;
+        await user.save();
+        return res.status(200).json({
+            success: true,
+            message: "Profile picture updated successfully.",
+            data: user,
+        });
+    }
+    catch (error) {
+        console.error("Update Profile Picture Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Unable to update profile picture.",
+        });
+    }
+};
+exports.updateProfilePicture = updateProfilePicture;

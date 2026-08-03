@@ -9,6 +9,8 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 import Course from "../models/course.model";
 import { HydratedDocument } from "mongoose";
 import dbConnect from "../db";
+import { uploadBuffer } from "../utils/cloudinaryUpload";
+
 
 interface RoleParams {
   role: string;
@@ -193,10 +195,6 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   };
 
 
-interface RoleParams {
-  role: string;
-}
-
 export const getUsersByRole = async (req: Request<RoleParams>, res: Response): Promise<void> => {
   try {
     await dbConnect();
@@ -315,6 +313,53 @@ export const getInstructorsByCourse = async (req: Request, res: Response): Promi
     res.status(500).json({
       success: false,
       message: "Failed to fetch instructors.",
+    });
+  }
+};
+
+
+
+export const updateProfilePicture = async (req: AuthRequest, res: Response): Promise<Response> => {
+  try {
+    await dbConnect();
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload an image.",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const uploaded = await uploadBuffer(req.file.buffer, {
+      folder: "progrowing/users",
+    });
+    user.img = uploaded.secure_url;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully.",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Update Profile Picture Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update profile picture.",
     });
   }
 };
