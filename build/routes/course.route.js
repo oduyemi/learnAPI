@@ -10,4 +10,6 @@ router.get("/general", course_controller_1.getGeneralCourses);
 router.get("/category/:categoryId", course_controller_1.getCoursesByCategory);
 router.get("/instructor/:userId", course_controller_1.getCoursesByInstructor);
 router.get("/:id", course_controller_1.getCourse);
+router.patch("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), course_controller_1.updateCourse);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), course_controller_1.deleteCourse);
 exports.default = router;

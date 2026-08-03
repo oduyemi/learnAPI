@@ -6,6 +6,7 @@ import Category from "../models/category.model";
 import { AuthRequest } from "../middlewares/auth.middleware";
 import dbConnect from "../db";
 import { validateUsersByRole } from "../middlewares/validation.middleware";
+import Cohort from "../models/cohort.model";
 
 
 
@@ -310,3 +311,218 @@ export const getCourse = async (req: Request, res: Response): Promise<Response> 
         });
     }
 };
+
+
+export const updateCourse = async (req: AuthRequest, res: Response): Promise<Response> => {
+    try {
+        await dbConnect();
+        if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: "Unauthorized.",
+        });
+        }
+    
+        const { id } = req.params;
+        const course = await Course.findById(id);
+        if (!course) {
+        return res.status(404).json({
+            success: false,
+            message: "Course not found.",
+        });
+        }
+    
+        const {title, desc, category, thumbnail, instructors, duration, hasCertificate, certificateTemplate, isGeneral} = req.body;
+        if (title !== undefined) {
+        const cleanedTitle = title.trim().replace(/\s+/g, " ");   
+        const existingTitle = await Course.findOne({
+            _id: { $ne: course._id },
+            title: {
+            $regex: new RegExp(`^${cleanedTitle}$`, "i"),
+            },
+        });
+        if (existingTitle) {
+            return res.status(409).json({
+            success: false,
+            message: "A course with this title already exists.",
+            });
+        }
+    
+        const slug = slugify(cleanedTitle, {
+            lower: true,
+            strict: true,
+            trim: true,
+        });
+        const existingSlug = await Course.findOne({
+            _id: { $ne: course._id },
+            slug,
+        });
+        if (existingSlug) {
+            return res.status(409).json({
+            success: false,
+            message: "A course with this slug already exists.",
+            });
+        }
+    
+        course.title = cleanedTitle;
+        course.slug = slug;
+        }
+        if (desc !== undefined) {
+            course.desc = desc.trim().replace(/\s+/g, " ");
+        }
+    
+        if (thumbnail !== undefined) {
+            course.thumbnail = thumbnail.trim();
+        }
+    
+        if (duration !== undefined) {
+            course.duration = duration.trim();
+        }
+    
+        if (category !== undefined) {
+            const existingCategory = await Category.findById(category);
+    
+        if (!existingCategory) {
+            return res.status(404).json({
+            success: false,
+            message: "Category not found.",
+            });
+        }
+    
+            course.category = category;
+        }
+    
+        if (instructors !== undefined) {
+        if (!Array.isArray(instructors)) {
+            return res.status(400).json({
+            success: false,
+            message: "Instructors must be an array.",
+            });
+        }
+    
+            const instructorUsers = await validateUsersByRole(
+                instructors,
+                "instructor"
+        );
+    
+        if (!instructorUsers) {
+            return res.status(400).json({
+            success: false,
+            message: "One or more instructors are invalid.",
+            });
+        }
+    
+            course.instructors = instructorUsers.map(
+            (user) => user._id
+        );
+        }
+    
+        if (hasCertificate !== undefined) {
+            course.hasCertificate = hasCertificate;
+    
+        if (hasCertificate) {
+            if (!certificateTemplate) {
+            return res.status(400).json({
+                success: false,
+                message: "Certificate template is required.",
+            });
+            }
+    
+            course.certificateTemplate =
+            certificateTemplate.trim();
+        } else {
+            course.certificateTemplate = undefined;
+        }
+        }
+    
+        if (isGeneral !== undefined) {
+            course.isGeneral = isGeneral;
+        }
+    
+        await course.save();
+        await course.populate([
+        {
+            path: "category",
+            select: "title slug",
+        },
+        {
+            path: "instructors",
+            select: "fname lname email img role",
+        },
+        {
+            path: "createdBy",
+            select: "fname lname email",
+        },
+        ]);
+    
+        return res.status(200).json({
+        success: true,
+        message: "Course updated successfully.",
+        data: course,
+        });
+    } catch (error) {
+        console.error("Update Course Error:", error);
+    
+        return res.status(500).json({
+            success: false,
+            message: "Unable to update course.",
+        });
+    }
+};
+
+
+export const deleteCourse = async (req: AuthRequest, res: Response): Promise<Response> => {
+    try {
+        await dbConnect();
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized.",
+            });
+        }
+    
+        const { id } = req.params;
+        const course = await Course.findById(id);
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found.",
+            });
+        }
+        
+        const cohortCount = await Cohort.countDocuments({
+            courses: id,
+        });
+        
+        if (cohortCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Course belongs to one or more cohorts.",
+            });
+        }
+        
+        const enrollmentCount = await Enrollment.countDocuments({
+            course: id,
+        });
+        
+        if (enrollmentCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Course has enrolled students.",
+            });
+        }
+    
+        await course.deleteOne();
+        return res.status(200).json({
+            success: true,
+            message: "Course deleted successfully.",
+        });
+    } catch (error) {
+        console.error("Delete Course Error:", error);
+    
+        return res.status(500).json({
+            success: false,
+            message: "Unable to delete course.",
+        });
+    }
+  };

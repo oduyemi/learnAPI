@@ -1,7 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-
-
 export interface ICohort extends Document {
   _id: mongoose.Types.ObjectId;
   courses: mongoose.Types.ObjectId[];
@@ -12,7 +10,6 @@ export interface ICohort extends Document {
   status: "not_started" | "in_progress"| "ended" | "suspended"
   createdAt: Date;
 }
-
 
 const cohortSchema: Schema = new mongoose.Schema({
     courses: [
