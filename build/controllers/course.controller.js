@@ -10,6 +10,7 @@ const category_model_1 = __importDefault(require("../models/category.model"));
 const db_1 = __importDefault(require("../db"));
 const validation_middleware_1 = require("../middlewares/validation.middleware");
 const cohort_model_1 = __importDefault(require("../models/cohort.model"));
+const enrollment_model_1 = __importDefault(require("../models/enrollment.model"));
 const createCourse = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -439,7 +440,7 @@ const deleteCourse = async (req, res) => {
                 message: "Course belongs to one or more cohorts.",
             });
         }
-        const enrollmentCount = await Enrollment.countDocuments({
+        const enrollmentCount = await enrollment_model_1.default.countDocuments({
             course: id,
         });
         if (enrollmentCount > 0) {
