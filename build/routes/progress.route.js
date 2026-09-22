@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const progress_controller_1 = require("../controllers/progress.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "student"), progress_controller_1.trackModuleProgress);
+router.get("/student/:studentId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "student", "mentor", "instructor"), progress_controller_1.getStudentProgress);
+router.get("/cohort/:cohortId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "mentor", "instructor"), progress_controller_1.getCohortProgress);
+router.get("/module/:moduleId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "mentor", "instructor"), progress_controller_1.getModuleProgress);
+router.get("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "student", "mentor", "instructor"), progress_controller_1.getProgress);
+router.patch("/:id/complete", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "student"), progress_controller_1.completeModule);
+router.patch("/:id/quiz-score", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), progress_controller_1.updateQuizScore);
+router.patch("/:id/assignment-score", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), progress_controller_1.updateAssignmentScore);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), progress_controller_1.resetProgress);
+exports.default = router;

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const assignment_controller_1 = require("../controllers/assignment.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), assignment_controller_1.createAssignment);
+router.get("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), assignment_controller_1.getAssignments);
+router.get("/module/:moduleId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), assignment_controller_1.getAssignmentsByModule);
+router.get("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), assignment_controller_1.getAssignment);
+router.patch("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), assignment_controller_1.updateAssignment);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), assignment_controller_1.deleteAssignment);
+exports.default = router;

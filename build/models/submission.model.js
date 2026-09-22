@@ -48,21 +48,38 @@ const submissionSchema = new mongoose_1.Schema({
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: "Quiz",
     },
+    attemptNumber: {
+        type: Number,
+        min: 1,
+    },
     answers: [
         {
             question: {
                 type: mongoose_1.default.Schema.Types.ObjectId,
                 ref: "Question",
             },
-            selectedOption: Number,
+            selectedOption: {
+                type: Number,
+                min: 0,
+            },
         },
     ],
-    submission: [String],
-    files: [String],
-    score: Number,
+    submission: {
+        type: [String],
+        default: [],
+    },
+    files: {
+        type: [String],
+        default: [],
+    },
+    score: {
+        type: Number,
+        min: 0,
+    },
     feedback: {
         type: String,
         default: "",
+        trim: true,
     },
     status: {
         type: String,
@@ -73,19 +90,35 @@ const submissionSchema = new mongoose_1.Schema({
             "late",
         ],
         default: "submitted",
+        required: true,
     },
     gradedBy: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: "User",
     },
-    gradedAt: Date,
+    gradedAt: {
+        type: Date,
+    },
 }, {
     timestamps: {
         createdAt: "submittedAt",
         updatedAt: true,
     },
 });
-submissionSchema.index({ student: 1, assignment: 1 }, { unique: true, sparse: true });
-submissionSchema.index({ student: 1, quiz: 1 }, { unique: true, sparse: true });
+submissionSchema.index({
+    student: 1,
+    assignment: 1,
+}, {
+    unique: true,
+    sparse: true,
+});
+submissionSchema.index({
+    student: 1,
+    quiz: 1,
+    attemptNumber: 1,
+}, {
+    unique: true,
+    sparse: true,
+});
 const Submission = mongoose_1.default.model("Submission", submissionSchema);
 exports.default = Submission;

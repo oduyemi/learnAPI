@@ -5,9 +5,16 @@ import dbConnect from "./db/index";
 import appRoutes from "./routes/app.route";
 import authRoutes from "./routes/auth.route";
 import userRoutes from "./routes/user.route";
+import enrollmentRoutes from "./routes/enrollment.route";
 import cohortRoutes from "./routes/cohort.route";
-import courseRoutes from "./routes/course.route";
 import categoryRoutes from "./routes/category.route";
+import courseRoutes from "./routes/course.route";
+import moduleRoutes from "./routes/module.route";
+import questionRoutes from "./routes/question.route";
+import assignmentRoutes from "./routes/assignment.route";
+import submissionRoutes from "./routes/submission.route";
+import quizRoutes from "./routes/quiz.route";
+import progressRoutes from "./routes/progress.route";
 
 dotenv.config();
 
@@ -30,9 +37,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/", appRoutes);
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
+app.use("/enrollment", enrollmentRoutes);
 app.use("/cohort", cohortRoutes);
-app.use("/course", courseRoutes);
 app.use("/course-category", categoryRoutes);
+app.use("/course", courseRoutes);
+app.use("/modules", moduleRoutes);
+app.use("/questions", questionRoutes);
+app.use("/assignments",assignmentRoutes);
+app.use("/submission", submissionRoutes);
+app.use("/progress", progressRoutes);
+app.use("/quiz", quizRoutes)
 
 
 app.use((req, res) => {

@@ -5,6 +5,7 @@ export interface ISubmission extends Document {
   student: mongoose.Types.ObjectId;
   assignment?: mongoose.Types.ObjectId;
   quiz?: mongoose.Types.ObjectId;
+  attemptNumber?: number;
   answers?: {
     question: mongoose.Types.ObjectId;
     selectedOption: number;
@@ -18,13 +19,15 @@ export interface ISubmission extends Document {
     | "submitted"
     | "graded"
     | "late";
+
   submittedAt: Date;
   gradedAt?: Date;
   gradedBy?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-
-const submissionSchema = new Schema(
+const submissionSchema = new Schema<ISubmission>(
   {
     student: {
       type: mongoose.Schema.Types.ObjectId,
@@ -41,6 +44,10 @@ const submissionSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Quiz",
     },
+    attemptNumber: {
+      type: Number,
+      min: 1,
+    },
 
     answers: [
       {
@@ -49,19 +56,32 @@ const submissionSchema = new Schema(
           ref: "Question",
         },
 
-        selectedOption: Number,
+        selectedOption: {
+          type: Number,
+          min: 0,
+        },
       },
     ],
 
-    submission: [String],
+    submission: {
+      type: [String],
+      default: [],
+    },
 
-    files: [String],
+    files: {
+      type: [String],
+      default: [],
+    },
 
-    score: Number,
+    score: {
+      type: Number,
+      min: 0,
+    },
 
     feedback: {
       type: String,
       default: "",
+      trim: true,
     },
 
     status: {
@@ -73,6 +93,7 @@ const submissionSchema = new Schema(
         "late",
       ],
       default: "submitted",
+      required: true,
     },
 
     gradedBy: {
@@ -80,7 +101,9 @@ const submissionSchema = new Schema(
       ref: "User",
     },
 
-    gradedAt: Date,
+    gradedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: {
@@ -91,15 +114,30 @@ const submissionSchema = new Schema(
 );
 
 submissionSchema.index(
-  { student: 1, assignment: 1 },
-  { unique: true, sparse: true }
+  {
+    student: 1,
+    assignment: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+  }
 );
-
 submissionSchema.index(
-  { student: 1, quiz: 1 },
-  { unique: true, sparse: true }
+  {
+    student: 1,
+    quiz: 1,
+    attemptNumber: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+  }
 );
 
-const Submission = mongoose.model<ISubmission>("Submission", submissionSchema);
+const Submission = mongoose.model<ISubmission>(
+  "Submission",
+  submissionSchema
+);
 
 export default Submission;

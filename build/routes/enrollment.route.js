@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const enrollment_controller_1 = require("../controllers/enrollment.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.createEnrollment);
+router.get("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.getEnrollments);
+router.get("/cohort/:cohortId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), enrollment_controller_1.getEnrollmentByCohort);
+router.get("/student/:studentId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), enrollment_controller_1.getEnrollmentByStudent);
+router.get("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.getEnrollment);
+router.patch("/:id/students", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.addStudentsToEnrollment);
+router.delete("/:id/students/:studentId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.removeStudentFromEnrollment);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), enrollment_controller_1.deleteEnrollment);
+exports.default = router;

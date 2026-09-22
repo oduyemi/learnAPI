@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const module_controller_1 = require("../controllers/module.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), module_controller_1.createModule);
+router.get("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin"), module_controller_1.getModules);
+router.get("/cohort/:cohortId", auth_middleware_1.authenticate, module_controller_1.getModulesByCohort);
+router.get("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor"), module_controller_1.getModule);
+router.patch("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), module_controller_1.updateModule);
+router.patch("/:id/publish", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), module_controller_1.toggleModulePublish);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), module_controller_1.deleteModule);
+exports.default = router;

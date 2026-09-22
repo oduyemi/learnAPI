@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const quiz_controller_1 = require("../controllers/quiz.controller");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.createQuiz);
+router.get("/", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor", "student"), quiz_controller_1.getQuizzes);
+router.get("/module/:moduleId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor", "student"), quiz_controller_1.getQuizzesByModule);
+router.patch("/:id/questions", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.addQuestionsToQuiz);
+router.delete("/:id/questions/:questionId", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.removeQuestionFromQuiz);
+router.patch("/:id/publish", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.toggleQuizPublication);
+router.patch("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.updateQuiz);
+router.get("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor", "mentor", "student"), quiz_controller_1.getQuiz);
+router.delete("/:id", auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)("admin", "instructor"), quiz_controller_1.deleteQuiz);
+exports.default = router;
