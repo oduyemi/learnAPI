@@ -8,31 +8,10 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const assignment_model_1 = __importDefault(require("../models/assignment.model"));
 const module_model_1 = __importDefault(require("../models/module.model"));
 const db_1 = __importDefault(require("../db"));
-/**
- * CREATE ASSIGNMENT
- *
- * POST /assignments
- *
- * Body:
- * {
- *   "module": "MODULE_ID",
- *   "title": "Build a REST API",
- *   "desc": "Create a REST API using Express and MongoDB.",
- *   "startDate": "2026-09-25T09:00:00.000Z",
- *   "endDate": "2026-10-02T23:59:59.000Z",
- *   "maxScore": 100,
- *   "attachments": [
- *     "https://example.com/instructions.pdf"
- *   ]
- * }
- */
 const createAssignment = async (req, res) => {
     try {
         await (0, db_1.default)();
-        const { module, title, desc, startDate, endDate, maxScore, attachments, } = req.body;
-        /**
-         * Required fields
-         */
+        const { module, title, desc, startDate, endDate, maxScore, attachments } = req.body;
         if (!module) {
             return res.status(400).json({
                 success: false,
@@ -51,18 +30,12 @@ const createAssignment = async (req, res) => {
                 message: "Assignment description is required.",
             });
         }
-        /**
-         * Validate module ID
-         */
         if (!mongoose_1.default.isValidObjectId(module)) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid module ID.",
             });
         }
-        /**
-         * Validate max score
-         */
         const numericMaxScore = Number(maxScore);
         if (maxScore === undefined ||
             !Number.isFinite(numericMaxScore) ||
@@ -72,9 +45,6 @@ const createAssignment = async (req, res) => {
                 message: "Max score must be a number greater than or equal to 1.",
             });
         }
-        /**
-         * Validate dates
-         */
         let parsedStartDate;
         let parsedEndDate;
         if (startDate) {
@@ -95,9 +65,6 @@ const createAssignment = async (req, res) => {
                 });
             }
         }
-        /**
-         * End date cannot be before start date
-         */
         if (parsedStartDate &&
             parsedEndDate &&
             parsedEndDate < parsedStartDate) {
@@ -106,9 +73,6 @@ const createAssignment = async (req, res) => {
                 message: "End date cannot be before start date.",
             });
         }
-        /**
-         * Validate attachments
-         */
         let cleanedAttachments = [];
         if (attachments !== undefined) {
             if (!Array.isArray(attachments)) {
@@ -122,9 +86,6 @@ const createAssignment = async (req, res) => {
                 .map((attachment) => attachment.trim())
                 .filter(Boolean);
         }
-        /**
-         * Verify module exists
-         */
         const existingModule = await module_model_1.default.findById(module);
         if (!existingModule) {
             return res.status(404).json({
@@ -132,13 +93,6 @@ const createAssignment = async (req, res) => {
                 message: "Module not found.",
             });
         }
-        /**
-         * Prevent multiple assignments from being accidentally
-         * attached to the same module if that is not intended.
-         *
-         * Remove this check if you eventually want multiple
-         * assignments per module.
-         */
         const existingAssignment = await assignment_model_1.default.findOne({
             module,
         });
@@ -148,9 +102,6 @@ const createAssignment = async (req, res) => {
                 message: "An assignment already exists for this module.",
             });
         }
-        /**
-         * Create assignment
-         */
         const assignment = await assignment_model_1.default.create({
             module,
             title: title.trim().replace(/\s+/g, " "),
@@ -160,9 +111,6 @@ const createAssignment = async (req, res) => {
             maxScore: numericMaxScore,
             attachments: cleanedAttachments,
         });
-        /**
-         * Populate module information
-         */
         await assignment.populate({
             path: "module",
             select: "title weekNumber session cohort order",
@@ -186,11 +134,6 @@ const createAssignment = async (req, res) => {
     }
 };
 exports.createAssignment = createAssignment;
-/**
- * GET ALL ASSIGNMENTS
- *
- * GET /assignments
- */
 const getAssignments = async (_req, res) => {
     try {
         await (0, db_1.default)();
@@ -219,11 +162,6 @@ const getAssignments = async (_req, res) => {
     }
 };
 exports.getAssignments = getAssignments;
-/**
- * GET SINGLE ASSIGNMENT
- *
- * GET /assignments/:id
- */
 const getAssignment = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -262,11 +200,6 @@ const getAssignment = async (req, res) => {
     }
 };
 exports.getAssignment = getAssignment;
-/**
- * GET ASSIGNMENTS BY MODULE
- *
- * GET /assignments/module/:moduleId
- */
 const getAssignmentsByModule = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -300,11 +233,6 @@ const getAssignmentsByModule = async (req, res) => {
     }
 };
 exports.getAssignmentsByModule = getAssignmentsByModule;
-/**
- * UPDATE ASSIGNMENT
- *
- * PATCH /assignments/:id
- */
 const updateAssignment = async (req, res) => {
     try {
         await (0, db_1.default)();
@@ -322,10 +250,7 @@ const updateAssignment = async (req, res) => {
                 message: "Assignment not found.",
             });
         }
-        const { module, title, desc, startDate, endDate, maxScore, attachments, } = req.body;
-        /**
-         * Validate module if being changed
-         */
+        const { module, title, desc, startDate, endDate, maxScore, attachments } = req.body;
         if (module !== undefined) {
             if (!mongoose_1.default.isValidObjectId(module)) {
                 return res.status(400).json({
@@ -340,10 +265,6 @@ const updateAssignment = async (req, res) => {
                     message: "Module not found.",
                 });
             }
-            /**
-             * Check whether another assignment already belongs
-             * to this module.
-             */
             const duplicateAssignment = await assignment_model_1.default.findOne({
                 module,
                 _id: { $ne: id },
@@ -356,9 +277,6 @@ const updateAssignment = async (req, res) => {
             }
             assignment.module = module;
         }
-        /**
-         * Update title
-         */
         if (title !== undefined) {
             if (!title.trim()) {
                 return res.status(400).json({
@@ -368,9 +286,6 @@ const updateAssignment = async (req, res) => {
             }
             assignment.title = title.trim().replace(/\s+/g, " ");
         }
-        /**
-         * Update description
-         */
         if (desc !== undefined) {
             if (!desc.trim()) {
                 return res.status(400).json({
@@ -380,9 +295,6 @@ const updateAssignment = async (req, res) => {
             }
             assignment.desc = desc.trim();
         }
-        /**
-         * Update start date
-         */
         if (startDate !== undefined) {
             if (!startDate) {
                 assignment.startDate = undefined;
@@ -398,9 +310,6 @@ const updateAssignment = async (req, res) => {
                 assignment.startDate = parsedStartDate;
             }
         }
-        /**
-         * Update end date
-         */
         if (endDate !== undefined) {
             if (!endDate) {
                 assignment.endDate = undefined;
@@ -416,9 +325,6 @@ const updateAssignment = async (req, res) => {
                 assignment.endDate = parsedEndDate;
             }
         }
-        /**
-         * Validate date relationship
-         */
         if (assignment.startDate &&
             assignment.endDate &&
             assignment.endDate < assignment.startDate) {
@@ -427,9 +333,6 @@ const updateAssignment = async (req, res) => {
                 message: "End date cannot be before start date.",
             });
         }
-        /**
-         * Update max score
-         */
         if (maxScore !== undefined) {
             const numericMaxScore = Number(maxScore);
             if (!Number.isFinite(numericMaxScore) ||
@@ -441,9 +344,6 @@ const updateAssignment = async (req, res) => {
             }
             assignment.maxScore = numericMaxScore;
         }
-        /**
-         * Update attachments
-         */
         if (attachments !== undefined) {
             if (!Array.isArray(attachments)) {
                 return res.status(400).json({
@@ -480,11 +380,6 @@ const updateAssignment = async (req, res) => {
     }
 };
 exports.updateAssignment = updateAssignment;
-/**
- * DELETE ASSIGNMENT
- *
- * DELETE /assignments/:id
- */
 const deleteAssignment = async (req, res) => {
     try {
         await (0, db_1.default)();

@@ -1,18 +1,24 @@
 import { Router } from "express";
-import { changePassword, forgotPassword, login, me, resetPassword, updateProfile } from "../controllers/auth.controller";
+import {
+  login,
+  me,
+  updateProfile,
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  ResetPasswordParams,
+} from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/auth.middleware";
+import { validatePassword } from "../middlewares/validation.middleware";
+
 
 const router = Router();
+
 
 router.post("/login", login);
 router.get("/me", authenticate, me);
 router.patch("/profile", authenticate, updateProfile);
-router.patch("/change-password", authenticate, changePassword);
+router.patch("/change-password", authenticate, validatePassword, changePassword);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
-// router.post("/logout", (_req, res) => {
-//   return res.status(200).json({ message: "Logout successful" });
-// });
-
-
+router.post<ResetPasswordParams>("/reset-password/:token", resetPassword);
 export default router;

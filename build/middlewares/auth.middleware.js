@@ -6,53 +6,101 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.authenticate = void 0;
 const user_model_1 = __importDefault(require("../models/user.model"));
 const auth_1 = require("../utils/auth");
+const db_1 = __importDefault(require("../db"));
+/**
+ * UNIVERSAL AUTHENTICATION
+ *
+ * Authenticates every type of user:
+ * - admin
+ * - instructor
+ * - mentor
+ * - student
+ *
+ * The user's role is available through:
+ *
+ * req.user.role
+ */
 const authenticate = async (req, res, next) => {
     try {
+        await (0, db_1.default)();
         const authHeader = req.headers.authorization;
-        if (!authHeader?.startsWith("Bearer ")) {
-            return res.status(401).json({
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            res.status(401).json({
                 success: false,
                 message: "Authentication required.",
             });
+            return;
         }
-        const token = authHeader.split(" ")[1];
+        const token = authHeader.substring(7).trim();
+        if (!token) {
+            res.status(401).json({
+                success: false,
+                message: "Authentication token is missing.",
+            });
+            return;
+        }
         const decoded = (0, auth_1.verifyToken)(token);
+        if (!decoded?.id) {
+            res.status(401).json({
+                success: false,
+                message: "Invalid authentication token.",
+            });
+            return;
+        }
         const user = await user_model_1.default.findById(decoded.id).select("-password");
         if (!user) {
-            return res.status(401).json({
+            res.status(401).json({
                 success: false,
-                message: "User not found.",
+                message: "User account no longer exists.",
             });
+            return;
         }
         if (user.status === "suspended") {
-            return res.status(403).json({
+            res.status(403).json({
                 success: false,
                 message: "Your account has been suspended.",
             });
+            return;
         }
         req.user = user;
         next();
     }
     catch (error) {
-        return res.status(401).json({
+        console.error("Authentication Error:", error);
+        res.status(401).json({
             success: false,
             message: "Invalid or expired token.",
         });
     }
 };
 exports.authenticate = authenticate;
+/**
+ * ROLE AUTHORIZATION
+ *
+ * Example:
+ *
+ * requireRole("admin")
+ *
+ * or:
+ *
+ * requireRole("admin", "instructor")
+ *
+ * Authentication must happen before this middleware.
+ */
 const requireRole = (...roles) => (req, res, next) => {
     if (!req.user) {
-        return res.status(401).json({
+        res.status(401).json({
             success: false,
-            message: "Unauthorized.",
+            message: "Authentication required.",
         });
+        return;
     }
     if (!roles.includes(req.user.role)) {
-        return res.status(403).json({
+        res.status(403).json({
             success: false,
             message: "You do not have permission to perform this action.",
         });
+        return;
     }
     next();
 };

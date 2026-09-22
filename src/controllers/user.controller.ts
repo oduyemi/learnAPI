@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import User, { IUser } from "../models/user.model";
 import Cohort from "../models/cohort.model";
@@ -12,108 +13,157 @@ import dbConnect from "../db";
 import { uploadBuffer } from "../utils/cloudinaryUpload";
 
 
-interface RoleParams {
+export interface RoleParams {
   role: string;
 }
 
 
-export const createUser = async (req: AuthRequest, res: Response) => {
-    try{
-      await dbConnect();
-      const {fname, lname, email, phone, role, cohort, img} = req.body;
-      if(!fname|| !lname|| !email|| !phone|| !role){
-          res.status(400).json({
-              success:false,
-              message:"Missing required fields."
-          });
-          return;
-      }
-      
-      const exists = await User.findOne({
-        $or: [{ email }, { phone }]
+export const createUser = async (
+  req: AuthRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    await dbConnect();
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
       });
-      
-      if (exists) {
-        res.status(409).json({
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only administrators can create users.",
+      });
+    }
+
+    const {fname, lname, email, phone, role, cohort, img} = req.body;
+    if (
+      !fname?.trim() ||
+      !lname?.trim() ||
+      !email?.trim() ||
+      !phone?.trim() ||
+      !role
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "First name, last name, email, phone and role are required.",
+      });
+    }
+
+    const validRoles = [
+      "student",
+      "mentor",
+      "instructor",
+      "admin",
+    ] as const;
+
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid role. Role must be student, mentor, instructor or admin.",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = phone.trim();
+    const exists = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { phone: normalizedPhone },
+      ],
+    });
+
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Email or phone number already exists.",
+      });
+    }
+
+    if (role === "student" && !cohort) {
+      return res.status(400).json({
+        success: false,
+        message: "Students must belong to a cohort.",
+      });
+    }
+
+    if (cohort) {
+      if (!mongoose.isValidObjectId(cohort)) {
+        return res.status(400).json({
           success: false,
-          message: "Email or phone already exists."
+          message: "Invalid cohort ID.",
         });
-        return; 
       }
-      
-      if(role==="student" && !cohort){
-          res.status(400).json({
-          success:false,
-          message:"Students must belong to a cohort."
-          });
-          return;
+
+      const cohortExists = await Cohort.findById(cohort);
+      if (!cohortExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Cohort not found.",
+        });
       }
-      
-      if(cohort){
-          const cohortExists=await Cohort.findById(cohort);
-      
-          if(!cohortExists){
-              res.status(404).json({
-                  success:false,
-                  message:"Cohort not found."
-              });
-              return;
-          }
-      }
-      
-      const temporaryPassword = generateTemporaryPassword();
-      const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
-      const user= await User.create({
-          fname,
-          lname,
-          email:email.toLowerCase(),
-          phone,
-          role,
-          cohort:cohort||null,
-          img,
-          password:hashedPassword
-      });
-      switch(role){
-          case "admin":
-              await sendAdminOnboardingMail(
-                  user.email,
-                  temporaryPassword
-              );
-          break;
-      
-          case "mentor":
-              await sendMentorOnboardingMail(
-                  user.email,
-                  temporaryPassword
-              );
-          break;
-      
-          case "instructor":
-              await sendInstructorOnboardingMail(
-                  user.email,
-                  temporaryPassword
-              );
-          break;
-          default:
-              await sendOnboardingMail(
-              user.email,
-              temporaryPassword
-              );
-          }
-      
-      res.status(201).json({
-          success:true,
-          message:"User created successfully.",
-          user:serializeUser(user)
-      });
-      
-      }catch(error){
-          console.error(error);
-          res.status(500).json({
-              success:false,
-              message:"Internal server error."
-      });
-      return;
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const user = await User.create({
+      fname: fname.trim(),
+      lname: lname.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      role,
+      cohort: cohort || null,
+      img: img || undefined,
+      password: hashedPassword,
+      status: "active",
+    });
+
+    switch (role) {
+      case "admin":
+        await sendAdminOnboardingMail(
+          user.email,
+          temporaryPassword
+        );
+        break;
+
+      case "instructor":
+        await sendInstructorOnboardingMail(
+          user.email,
+          temporaryPassword
+        );
+        break;
+
+      case "mentor":
+        await sendMentorOnboardingMail(
+          user.email,
+          temporaryPassword
+        );
+        break;
+
+      case "student":
+        await sendOnboardingMail(
+          user.email,
+          temporaryPassword
+        );
+        break;
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully.`,
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    console.error("Create User Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create user.",
+    });
   }
 };
 
